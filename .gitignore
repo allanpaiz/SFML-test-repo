@@ -4,3 +4,6 @@ out
 .idea
 .vs
 .vscode
+
+# Personal ignore additions
+run.sh
