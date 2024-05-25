@@ -11,6 +11,16 @@ FetchContent_Declare(SFML
 FetchContent_MakeAvailable(SFML)
 
 add_executable(my_exe src/main.cpp)
+
+# Add include directory
+# target_include_directories(My_Test_Project PRIVATE include)
+
+# Add source files
+# target_sources(My_Test_Project PRIVATE src/Game.cpp)
+
+# Add assets directory
+file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
+
 target_link_libraries(my_exe PRIVATE sfml-graphics)
 target_compile_features(my_exe PRIVATE cxx_std_17)
 
