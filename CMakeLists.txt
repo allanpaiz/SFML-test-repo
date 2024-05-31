@@ -10,10 +10,14 @@ FetchContent_Declare(SFML
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
 
+# Find OpenCV package
+find_package(OpenCV REQUIRED)
+
 add_executable(my_exe src/main.cpp)
 
 # Add include directory
 # target_include_directories(My_Test_Project PRIVATE include)
+target_include_directories(my_exe PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 # Add source files
 # target_sources(My_Test_Project PRIVATE src/Game.cpp)
@@ -21,7 +25,7 @@ add_executable(my_exe src/main.cpp)
 # Add assets directory
 file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
 
-target_link_libraries(my_exe PRIVATE sfml-graphics)
+target_link_libraries(my_exe PRIVATE sfml-graphics ${OpenCV_LIBS})
 target_compile_features(my_exe PRIVATE cxx_std_17)
 
 if(WIN32)

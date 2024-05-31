@@ -1,88 +1,81 @@
+
 #include <SFML/Graphics.hpp>
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <string>
+#include <vector>
 
-int main()
-{
-    auto window = sf::RenderWindow{ { 800u, 600u }, "SFML Tester" };
-    window.setFramerateLimit(144);
+std::vector<sf::Vector2f> points;
 
-    sf::Font font;
-    if (!font.loadFromFile("assets/Teachers-Regular.ttf"))
-    {
-        std::cerr << "Could not load font\n";
+int main() {
+    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML OpenCV Integration");
+    window.setFramerateLimit(60);
+
+    std::string fileName = "assets/screenshot.png";
+    cv::Mat srcImage = cv::imread(fileName);
+    if (srcImage.empty()) {
+        std::cerr << "Failed to load image: " << fileName << std::endl;
         return -1;
     }
 
-    sf::Text text;
-    text.setFont(font);
-    text.setCharacterSize(24);
-    text.setFillColor(sf::Color::White);
-    text.setPosition(10.f, 10.f);
-
-    std::string fileName;
+    cv::cvtColor(srcImage, srcImage, cv::COLOR_BGR2RGBA);
+    sf::Image sfImage;
+    sfImage.create(srcImage.cols, srcImage.rows, srcImage.ptr());
     sf::Texture texture;
+    if (!texture.loadFromImage(sfImage)) {
+        std::cerr << "Failed to load texture from SFML image" << std::endl;
+        return -1;
+    }
     sf::Sprite sprite;
-    bool imageLoaded = false;
+    sprite.setTexture(texture);
 
-    while (window.isOpen())
-    {
-
-        for (auto event = sf::Event{}; window.pollEvent(event);)
-        {
-            if (event.type == sf::Event::Closed)
-            {
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
                 window.close();
-            }
-
-            if (event.type == sf::Event::KeyPressed)
-            {
-                if (event.key.scancode == sf::Keyboard::Scan::Escape)
-                {
-                    window.close();
+            } else if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
+                    sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos);
+                    points.push_back(worldPos);
+                    std::cout << "Point selected: (" << worldPos.x << ", " << worldPos.y << ")" << std::endl;
                 }
-
-                if (event.key.scancode == sf::Keyboard::Scan::Enter)
-                {
-                    if (texture.loadFromFile("assets/" + fileName))
-                    {
-                        sprite.setTexture(texture);
-                        imageLoaded = true;
-                    }
-                    else
-                    {
-                        std::cerr << "Failed to load image\n";
-                        imageLoaded = false;
-                    }
-                }
-            }
-
-            if (event.type == sf::Event::TextEntered)
-            {
-                if (event.text.unicode == '\b') // Handle backspace
-                {
-                    if (!fileName.empty())
-                    {
-                        fileName.pop_back();
-                    }
-                }
-                else if (event.text.unicode < 128)
-                {
-                    fileName += static_cast<char>(event.text.unicode);
-                }
-
-                text.setString("Enter file name: " + fileName);
             }
         }
 
         window.clear();
-        window.draw(text);
-        if (imageLoaded)
-        {
-            window.draw(sprite);
+        window.draw(sprite);
+
+        for (const auto& point : points) {
+            sf::CircleShape shape(5);
+            shape.setPosition(point.x - shape.getRadius(), point.y - shape.getRadius());
+            shape.setFillColor(sf::Color::Red);
+            window.draw(shape);
         }
+
+        if (points.size() == 4) {
+            std::vector<cv::Point2f> srcPoints, dstPoints;
+            for (const auto& point : points) {
+                srcPoints.emplace_back(point.x, point.y);
+            }
+            dstPoints.emplace_back(0, 0);
+            dstPoints.emplace_back(srcImage.cols - 1, 0);
+            dstPoints.emplace_back(srcImage.cols - 1, srcImage.rows - 1);
+            dstPoints.emplace_back(0, srcImage.rows - 1);
+
+            cv::Mat perspectiveMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
+            cv::Mat warpedImage;
+            cv::warpPerspective(srcImage, warpedImage, perspectiveMatrix, srcImage.size());
+
+            cv::cvtColor(warpedImage, warpedImage, cv::COLOR_RGBA2BGR);
+            cv::imwrite("assets/warped_image.png", warpedImage);
+            std::cout << "Perspective transformation applied and saved as 'warped_image.png'" << std::endl;
+        }
+
         window.display();
     }
 
     return 0;
 }
+
